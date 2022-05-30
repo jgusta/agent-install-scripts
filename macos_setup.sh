@@ -27,13 +27,26 @@ fi
 echo "Setting brew alias"
 alias axbrew='arch -x86_64 $ABSOLUTE_PATH/AgentDVR/homebrew/bin/brew'
 
-if axbrew list dotnet-sdk3-1-300 &>/dev/null; then
-	echo "dotnet installed"
+DOTNET_EXISTING="$(which dotnet)"
+if test -x "$DOTNET_EXISTING"; then
+	echo 'Found preexisting dotnet install'
+	DOTNET_PATH="$DOTNET_EXISTING"
 else
-	echo "Installing dotnet"
+	# normal dotnet cask
+	echo 'Installing base dotnet command'
+	axbrew install --cask dotnet-sdk
+	DOTNET_PATH="$ABSOLUTE_PATH/AgentDVR/homebrew/bin/dotnet"
+
+	
+if axbrew list dotnet-sdk3-1-300 &>/dev/null; then
+	echo "dotnet parallel version successfully installed already"
+else
+	echo "installing parallel dotnet version"
+	# use a specific dotnet verion
 	axbrew tap isen-ng/dotnet-sdk-versions
 	axbrew install --cask dotnet-sdk3-1-300
 fi
+
 
 axbrew install curl ca-certificates
 
@@ -83,6 +96,8 @@ then
 		curl --show-error --location "https://raw.githubusercontent.com/ispysoftware/agent-install-scripts/main/com.ispy.agent.dvr.plist" -o "com.ispy.agent.dvr.plist"
 		sed -i '' "s|AGENT_LOCATION|${ABSOLUTE_PATH}/AgentDVR|" com.ispy.agent.dvr.plist
 		sed -i '' "s|YOUR_USERNAME|${name}|" com.ispy.agent.dvr.plist
+		# Fixme
+		sed -i '' "s|/usr/local/share/dotnet/dotnet|${DOTNET_PATH}|" com.ispy.agent.dvr.plist
 		echo "Creating service config"
 		sudo chmod a+x ./com.ispy.agent.dvr.plist
 		sudo cp com.ispy.agent.dvr.plist /Library/LaunchDaemons/
@@ -96,7 +111,7 @@ then
 	else
 		echo "Starting AgentDVR"
 		cd $ABSOLUTE_PATH/AgentDVR
-		dotnet Agent.dll
+		"$DOTNET_PATH" Agent.dll
 	fi
 else
 	echo "Found service definition in /Library/LaunchDaemons/com.ispy.agent.dvr.plist"
